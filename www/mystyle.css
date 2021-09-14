@@ -1,0 +1,16 @@
+ #resetbutton, #aboutButton {
+    margin-left: 20px !important;
+}
+
+.dataTables_length, .dataTables_info, .dataTables_filter {
+    color: aliceblue !important;
+}
+
+thead {
+    color: aliceblue !important;
+}
+
+.mytxtcolor {
+    color: #999 !important;
+}
+

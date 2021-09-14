@@ -1,0 +1,106 @@
+---
+title: "Database connection"
+output: html_notebook
+---
+
+```{r}
+library("RSQLite")
+library(RMySQL)
+library("tidyverse")
+```
+
+Hay dos opciones: 
+
+* Crear una base de datos localmente con SQLite tal como aparece en el siguiente chunck.
+  Esto genera un fichero .db en esta misma carpeta con el esquema de la base de datos
+
+```{r}
+# crear base de datos
+usuarios <- data.frame(usuario=c("fpsanz","fpsanz","fernando","fernando"),
+                       mail=c("fepesanz8@gmail.com","fepesanz8@gmail.com",
+                              "fernando.perez8@um.es","fernando.perez8@um.es"),
+                       fichero = c("setosa.Rds","virginica.Rds","cars.Rds","iris.Rds") )
+usuarios <- usuarios %>% unite(col= "id", usuario,mail,fichero, sep = "", remove = FALSE)
+#conectar a la base de datos
+conn <- dbConnect(RSQLite::SQLite(), "usuarios.db")
+
+#volcar a la base de datos
+dbWriteTable(conn, "usuarios", usuarios, overwrite=TRUE)
+
+#Hacer consultas a la base de datos:
+# método 1
+dbGetQuery(conn, "Select * from usuarios where usuario = 'fpsanz'")
+
+# método 2 con parámetros en la query
+identif = "fpsanz"
+dbGetQuery(conn, "Select * from usuarios where usuario=?", params=identif )
+
+```
+
+* Crear base de datos en el servidor y hacer la conexión
+
+```{r}
+#Conectar a la base de datos
+con = dbConnect(MySQL(), user = "root", password = "fps379725", dbname = "usuarios", host = "localhost")
+#comprobar conexion
+dbListTables(con)
+
+#Consulta a la bbdd
+dbGetQuery(con, "Select * from ficheros, usuarios where ficheros.idusuario = usuarios.id and usuarios.id=1")
+
+#insertar datos a las tablas
+dbWriteTable(con, value = usuarios, name = "usuarios", append = TRUE, row.names = FALSE)
+dbWriteTable(con, value = ficheros, name = "ficheros", append = TRUE, row.names = FALSE)
+
+```
+
+# Crear base de datos inicial con usuario admin de usuarios/contraseñas
+
+```{r}
+library(shinymanager)
+library(optparse)
+
+option_list <- list(
+  make_option(c("-a","--admin"), type="character", default =  NULL, help = "admin user name", metavar ="character" ),
+  make_option(c("-p","--pass"), type="character", default =  NULL, help = "admin user password", metavar ="character" ),
+  make_option(c("-d","--database"), type="character", default =  NULL, help = "database name", metavar ="character" ),
+  make_option(c("-b","--dbpass"), type="character", default =  NULL, help = "database pass", metavar ="character" )
+)
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+
+
+pass = "fps379725"
+dbpass = "fps379725"
+admin = "fpsanz"
+database = "credenciales.sqlite"
+## para crear una tabla inicial de usuarios
+credentials <- data.frame(
+  user = admin,
+  password = pass,
+  # password will automatically be hashed
+  admin = c(TRUE),
+  start = NA,
+  expire = NA,
+  stringsAsFactors = FALSE
+)
+
+# library(keyring)
+# key_set_with_value("R-fpsanz-key", "obiwankenobi", "1235")
+# para crear la base de datos de usuarios
+create_db(
+  credentials_data = credentials,
+  sqlite_path = "credenciales.sqlite",
+  passphrase = dbpass
+)
+
+saveRDS(dbpass, "dbpass.Rds" )
+
+
+```
+
+
+
+
+
