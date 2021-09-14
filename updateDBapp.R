@@ -71,8 +71,8 @@ ui <- secure_app(ui, enable_admin = TRUE, theme = shinythemes::shinytheme("darkl
 #### SERVER ###################
 server <- function(input,output,session){
     #comprobar credenciales
-    auth <- secure_server(check_credentials = check_credentials("credenciales.sqlite",
-                                                                passphrase = readRDS("dbpass.Rds")),
+    auth <- secure_server(check_credentials = check_credentials("./ddbb/credenciales.sqlite",
+                                                                passphrase = readRDS("./ddbb/dbpass.Rds")),
     )
     
     #definir variable que contendrá al usuario

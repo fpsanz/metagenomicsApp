@@ -9,7 +9,9 @@ tabPanel("Home",
              column(width = 11, offset = 1,
                     br(),
                     uiOutput("files"),
-                    actionButton("send", "Load")
+                    actionButton("send", "Load"),
+                    br(),
+                    uiOutput("variables")
              ),# fin column box
              tags$div(class = "bottomdiv",
                       column(width = 9, offset = 1,

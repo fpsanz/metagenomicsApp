@@ -65,8 +65,8 @@ server <- function(input, output, session) {
     #comprobar credenciales
     auth <- secure_server(check_credentials = 
                               check_credentials(
-                                  "credenciales.sqlite",
-                                  passphrase = readRDS("dbpass.Rds"))
+                                  "./ddbb/credenciales.sqlite",
+                                  passphrase = readRDS("./ddbb/dbpass.Rds"))
                           )
     
     #definir variable que contendrá al usuario

@@ -1,12 +1,12 @@
 usuariosCredenciales <- function(user){
-  conn <- DBI::dbConnect(SQLite(), dbname = "credenciales.sqlite")
+  conn <- DBI::dbConnect(SQLite(), dbname = "./ddbb/credenciales.sqlite")
   df <- read_db_decrypt(conn, name = "credentials", passphrase = "fps379725")
   dbDisconnect(conn)
   return(df$user)
 }
 
 recuperarDatosUsuario <- function(usuario){
-  conn <- DBI::dbConnect(SQLite(), dbname = "usuarios.db")
+  conn <- DBI::dbConnect(SQLite(), dbname = "./ddbb/usuarios.db")
   identif = usuario
   resdf <- dbGetQuery(conn, "Select * from usuarios where usuario=?", params=identif )
   dbDisconnect(conn)
@@ -14,7 +14,7 @@ recuperarDatosUsuario <- function(usuario){
 }
 
 insertarFicheroBD <- function(usuario,mail, fichero){
-  conn <- DBI::dbConnect(SQLite(), dbname = "usuarios.db")
+  conn <- DBI::dbConnect(SQLite(), dbname = "./ddbb/usuarios.db")
   usuario = usuario
   fichero = fichero
   mail = mail
@@ -32,7 +32,7 @@ insertarFicheroBD <- function(usuario,mail, fichero){
 }
 
 borrarRegistrosBD <- function(ids){
-  conn <- DBI::dbConnect(SQLite(), dbname = "usuarios.db")
+  conn <- DBI::dbConnect(SQLite(), dbname = "./ddbb/usuarios.db")
   dbExecute(conn, "DELETE FROM usuarios WHERE id IN (?);", list(ids))
   dbDisconnect(conn)
   return(TRUE)
