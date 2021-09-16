@@ -12,7 +12,7 @@ library(shiny)
 library(RSQLite)
 library(tidyverse)
 library(shinydashboard)
-library("RSQLite")
+library(RSQLite)
 library(DT)
 library(shinymanager)
 library(shinyalert)
@@ -20,6 +20,8 @@ library(shinyjs)
 library(shinyWidgets)
 library(shinythemes)
 library(shinyBS)
+library(phyloseq)
+library(DESeq2)
 source("utils.R")
 
 
@@ -35,11 +37,6 @@ ui <- fluidPage(
                fluid = TRUE,
                source(file = "ui-home.R", local = TRUE, encoding = "UTF-8")$value,
                source(file = "ui-selectContrast.R", local = TRUE, encoding = "UTF-8")$value,
-               #source(file = "ui-corrplot.R", local = TRUE, encoding = "UTF-8")$value,
-               #source(file = "ui-contributions.R", local = TRUE, encoding = "UTF-8")$value,
-               #source(file = "ui-hierarplot.R", local = TRUE, encoding = "UTF-8")$value,
-               #source(file = "ui-hcpc.R", local = TRUE, encoding = "UTF-8")$value,
-               #source(file = "ui-help.R", local = TRUE, encoding = "UTF-8")$value,
                includeCSS("./www/mystyle.css"),
                setShadow(class = "box"),
                useShinyalert()
@@ -132,18 +129,58 @@ server <- function(input, output, session) {
     ##renderizar selector de variables para el contraste
     output$variables <- renderUI({
         if(is.null(datos$exper)){
-            createAlert(session, "messageVariable", "variablemessage",
-                       title = "Missing samples info",
-                       content = "Please select file to select variable(s)",
-                       append = FALSE, style ="danger")
+            # createAlert(session, "messageVariable", "variablemessage",
+            #            title = "Missing samples info",
+            #            content = "Please select file to select variable(s)",
+            #            append = FALSE, style ="danger")
             return(NULL)
         }else{
-            closeAlert(session, "variablemessage")
+            #closeAlert(session, "variablemessage")
             selectInput("selectvariable", label = "Select variable(s) to contrast",
                         choices = colnames(datos$exper), multiple = TRUE, selected = NULL)
         }
     })
+    ## renderizar boton aceptar variables
+    output$variablesbtn <- renderUI({
+        if(is.null(input$selectvariable)){
+            return(NULL)
+        }else{
+            actionButton("aceptar","Aceptar")
+        }
+    })
     
+    contrasts <- reactiveValues()
+    observeEvent(input$aceptar,{
+        contrasts$res <- rescontrastes(otu = datos$otu,
+                                       exper = datos$exper,
+                                       variablesUsuario = input$selectvariable)
+        contrasts$names <- names(contrasts$res)
+    })
+    ## renderizar selector de contrastes
+    output$contrastSel <- renderUI({
+        validate(need(contrasts$names,"") )
+        selectInput("contraste", "Select contrast to view table",
+                    choices = contrasts$names, multiple = FALSE, 
+                    selected = NULL)
+    })
+    ## renderizar tabla
+    output$tablasRes <- DT::renderDataTable({
+        #validate(need(contrasts$names,""))
+        #validate(need(input$contraste,""))
+        if(is.null(input$contraste)){
+            createAlert(session, "messageVariable", "variablemessage",
+                        title = "Missing samples info",
+                        content = "Please select file and contrast view results",
+                        append = FALSE, style ="danger")
+            return(NULL)
+        }else{
+            closeAlert(session, "variablemessage")
+            contrasts$res[[input$contraste]] %>% 
+                mutate(pvalue = format(pvalue, digits=3, scientific=TRUE) ) %>% 
+                DT::datatable( options = list(scrollX=TRUE) ) %>% 
+                DT::formatSignif(1:4, digits = 3)
+            }
+    })
 }
 
 # Run the application 

@@ -14,7 +14,7 @@ if(length(varsel)==1){
 
 ####
 # cargar fichero de abundancias
-otu <- as.matrix(read.delim("../analisisInvestigadores/20210625_mulero_metagenomica/controles/OTU_family.txt", row.names=1))
+otu <- as.matrix(read.delim("../../analisisInvestigadores/20210625_mulero_metagenomica/controles/OTU_family.txt", row.names=1))
 attr(otu, "dimnames")[[2]] <- gsub("^S[0-9].{2}_",
                                    "", 
                                    attr(otu, "dimnames")[[2]] ) %>%

@@ -11,7 +11,8 @@ tabPanel("Home",
                     uiOutput("files"),
                     actionButton("send", "Load"),
                     br(),
-                    uiOutput("variables")
+                    uiOutput("variables"),
+                    uiOutput("variablesbtn")
              ),# fin column box
              tags$div(class = "bottomdiv",
                       column(width = 9, offset = 1,
@@ -24,10 +25,6 @@ tabPanel("Home",
            )
          ),
          column(width = 10,
-                fluidRow(
-                  column(width = 2, offset = 5,
-                    actionBttn("aceptaEnviar","Confirm data", style = "float", color = "primary"))),
-                br(),br(),
                 fluidRow(
                   column(width = 8, offset = 2,
                          box( width = 12, status = "info",
