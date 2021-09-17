@@ -10,8 +10,10 @@ tabPanel("Home",
                     br(),
                     uiOutput("files"),
                     actionButton("send", "Load"),
-                    br(),
+                    br(),br(),
                     uiOutput("variables"),
+                    uiOutput("removeSamples"),
+                    br(),
                     uiOutput("variablesbtn")
              ),# fin column box
              tags$div(class = "bottomdiv",

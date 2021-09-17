@@ -62,4 +62,18 @@ for(i in seq_len( length(res))) {
   res[[i]] <- cbind( res[[i]], otu[, muestrasContraste]) %>% as.data.frame()
 }
 
+#######################
+nombres <- names(exper)[which( names(exper) != "sampleId")]
+choices <- unlist(lapply(nombres, function(x){paste0(x,".",unique(exper[x])[[1]] ) } ))
+chorizos <- choices[c(7,9)]
+exper2 <- exper
+for(choice in chorizos){
+  kkita <- unlist(strsplit(choice,"[.]"))
+  exper2 <- exper2 %>% filter( !!rlang::sym(kkita[1]) == kkita[2] )
+}
+exper2
+
+
+
+
 

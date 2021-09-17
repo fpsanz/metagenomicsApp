@@ -7,6 +7,7 @@ conectarBBDD <- function(usuario){
   return(resdf)
 }
 
+#############rescontrastes######################
 rescontrastes <- function(otu, exper, variablesUsuario){
   variables <- names(exper)
   varsel <- variablesUsuario
@@ -53,9 +54,53 @@ rescontrastes <- function(otu, exper, variablesUsuario){
   
   for(i in seq_len( length(res))) {
     muestrasContraste <- exper$sampleId[ exper[,varname] %in% listcontr[[i]] ]
-    res[[i]] <- cbind( res[[i]], otu[, muestrasContraste]) %>% as.data.frame()
+    res[[i]] <- cbind( res[[i]], otu[, muestrasContraste]) %>% as.data.frame() %>% filter(baseMean != 0)
   }
   return(res)
 }
 
+generateChoices <- function(exper){
+  nombres <- names(exper)[which( names(exper) != "sampleId")]
+  choices <- unlist(lapply(nombres, function(x){paste0(x,".",unique(exper[x])[[1]] ) } ))
+  return(choices)  
+  # exper2 <- exper
+  # for(choice in chorizos){
+  #   kkita <- unlist(strsplit(choice,"[.]"))
+  #   exper2 <- exper2 %>% filter( !!rlang::sym(kkita[1]) == kkita[2] )
+  # }
+  # return(exper2$sampleId)
+}
 
+samples2Remove <- function(exper, selectcriteria){
+  if(!is.null(selectcriteria)){
+  exper2 <- exper
+  for(choice in selectcriteria){
+    kkita <- unlist(strsplit(choice,"[.]"))
+    exper2 <- exper2 %>% filter( !!rlang::sym(kkita[1]) == kkita[2] )
+  }}else{
+    exper2 <- exper
+    exper2$sampleId <- NULL
+  }
+  return(exper2$sampleId)
+}
+
+#########createSelectedVars#######################
+createSelectedVars <- function(exper, variablesUsuario){
+  varsel <- variablesUsuario
+  exper <- exper %>% unite( !!(paste0(varsel,collapse = ".")) , varsel, sep = ".", remove = F )
+  if(length(varsel)==1){
+    factores <- exper[ ,varsel ] %>% as.factor()
+    varname <- varsel
+  }else{
+    factores <- exper[ ,paste0(varsel,collapse = ".") ] %>% as.factor()
+    varname <- paste0(varsel,collapse = ".") 
+  }
+  return(exper[,varsel])
+}
+
+########abundanceBoxplot########################
+abundanceBoxplot <- function(datos, variablesUsuario){
+  kk <- otu %>% as.data.frame %>% rownames_to_column(var="taxa") %>% rowwise %>% 
+    mutate(mean = mean(c_across(starts_with("C")) )  ) %>%
+    filter( mean > 100 )
+}
