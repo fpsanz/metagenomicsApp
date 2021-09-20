@@ -27,14 +27,14 @@ rescontrastes <- function(otu, exper, variablesUsuario){
   norm <- apply(otu, 2, sum)
   norm <- diag(1/norm)
   otuNorm <- otu %*% norm
-  attr(otuNorm,"dimnames")[[2]] <- as.character(exper$SampleId)
+  attr(otuNorm,"dimnames")[[2]] <- as.character(exper$sampleId)
   # extrar factores del tratamiento
   group <- factores
   samplesdf <- data.frame(group=group)
   rownames(samplesdf) <- samples
   #crear objeto phyloseq
   otuphyl <- phyloseq( otu_table(otu, taxa_are_rows = T ), sample_data( samplesdf ) )
-  otuphylNorm <- phyloseq( otu_table(otuNorm, taxa_are_rows = T ), sample_names( samplesdf ) )
+  otuphylNorm <- phyloseq( otu_table(otuNorm, taxa_are_rows = T ), sample_data( samplesdf ) )
   #convertir a deseq2 con las dos tratamientos que se quiera
   # convertir a deseq
   diagdds12 = phyloseq_to_deseq2(otuphyl, ~ group)
@@ -56,7 +56,7 @@ rescontrastes <- function(otu, exper, variablesUsuario){
     muestrasContraste <- exper$sampleId[ exper[,varname] %in% listcontr[[i]] ]
     res[[i]] <- cbind( res[[i]], otu[, muestrasContraste]) %>% as.data.frame() %>% filter(baseMean != 0)
   }
-  return(res)
+  return(list(res = res, otuphyl=otuphyl, otuphylNorm = otuphylNorm) )
 }
 
 generateChoices <- function(exper){
@@ -95,12 +95,91 @@ createSelectedVars <- function(exper, variablesUsuario){
     factores <- exper[ ,paste0(varsel,collapse = ".") ] %>% as.factor()
     varname <- paste0(varsel,collapse = ".") 
   }
-  return(exper[,varsel])
+  return(exper)
 }
 
 ########abundanceBoxplot########################
-abundanceBoxplot <- function(datos, variablesUsuario){
-  kk <- otu %>% as.data.frame %>% rownames_to_column(var="taxa") %>% rowwise %>% 
-    mutate(mean = mean(c_across(starts_with("C")) )  ) %>%
-    filter( mean > 100 )
+abundanceBoxplot <- function(datos, variableUsuario){
+  varsel <- paste0(variableUsuario,collapse = ".")
+  otu <- datos$otufiltered
+  exper <- datos$experfiltered
+  grupos <- levels(factor( exper[,varsel] ))
+  kk <- otu %>% as.data.frame %>% rownames_to_column(var="taxa")
+  #samplesGrupo <- exper$sampleId[ variableUsuario ]
+  samplesGrupo <- exper$sampleId
+  topkk <- kk %>% rowwise %>% 
+    mutate( mean = mean(c_across(samplesGrupo ))) %>%
+    as.data.frame() %>% 
+    top_n(wt = mean, n = 25) %>% 
+    select(-mean)
+  otulong <- topkk %>% 
+    pivot_longer(cols = !starts_with("taxa"), names_to = "sample", values_to = "abundance")
+  otulong <- left_join(otulong, exper, by = c("sample"="sampleId"))
+  p <- otulong %>% 
+    ggplot(aes(x=taxa, y=abundance,
+               fill = as.factor(!!sym(varsel)) ,
+               color= as.factor(!!sym(varsel))))  +
+    geom_boxplot(alpha=0.4, width=0.5, position = position_dodge(width = 0.9))+
+    scale_y_continuous(trans = "log2")+
+    theme(axis.text.x = element_text(angle = 90),
+          text = element_text(size=14))+
+    labs(color ="Age", fill = "Age" )+
+    ylab("Abundance (log2)")+
+    facet_wrap(sym(varsel), ncol = 2)
+  return(p)
 }
+## barplot group ##@###################
+barplotGrupo <- function(datos, variableUsuario){
+  varsel <- paste0(variableUsuario,collapse = ".")
+  otuphylNorm <- datos$otuphylNorm
+  p <- psmelt(otuphylNorm) %>% group_by(OTU, group) %>%
+    summarise(Abundance = mean(Abundance))
+  p$Abundance <- p$Abundance*100
+  p <- p %>% mutate(menor01 = ifelse(Abundance<1, 1, 0)) %>%
+    mutate(newOTU = ifelse(menor01 == 1, "ETC<1%", OTU) ) %>% 
+    group_by(newOTU, group) %>% summarise(Abundance2 = sum(Abundance))
+  names(p) <- c("OTU","group","Abundance")
+  colores <- c('#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf')
+  colorRamps <- scales::colour_ramp(colores)
+  coloresRamp <- colorRamps(seq(0,1,length=length(unique(p$OTU)) ))
+  p <- p %>% ggplot(aes_string(x = "group", y="Abundance", fill="OTU")) +
+    geom_bar(stat = "identity", position = "stack", 
+             color = "black", show.legend = T, width = 0.5, size=0.01 ) +
+    scale_fill_manual(values= coloresRamp ) + 
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 0),
+          legend.position = "right",
+          text = element_text(size=14),
+          legend.key.size = unit(0.5, "cm") )+
+    guides(fill = guide_legend(ncol=1)) 
+  return(p)
+}
+##barplot samples ##########################
+barplotSample <- function(datos, selectvariable, sampleSelection){
+  varsel <- paste0(selectvariable, collapse = ".")
+  otuphylNorm <- datos$otuphylNorm
+  if(length(sampleSelection)>10){sampleSelection<-sampleSelection[1:10]}
+  p <- psmelt(otuphylNorm) %>% filter(Sample %in% sampleSelection ) %>% 
+    group_by(OTU, group, Sample) %>%
+    summarise(Abundance = mean(Abundance))
+  p$Abundance <- p$Abundance*100
+  p <- p %>% mutate(menor01 = ifelse(Abundance<1, 1, 0)) %>%
+    mutate(newOTU = ifelse(menor01 == 1, "ETC<1%", OTU) ) %>% 
+    group_by(newOTU, group, Sample) %>% summarise(Abundance2 = sum(Abundance))
+  names(p) <- c("OTU","group","Sample","Abundance")
+  colores <- c('#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf')
+  colorRamps <- scales::colour_ramp(colores)
+  coloresRamp <- colorRamps(seq(0,1,length=length(unique(p$OTU)) ))
+  p <- p %>% ggplot(aes_string(x = "Sample", y="Abundance", fill="OTU")) +
+    geom_bar(stat = "identity", position = "stack", 
+             color = "black", show.legend = T, width = 0.5, size=0.01 ) +
+    scale_fill_manual(values= coloresRamp ) + 
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 0),
+          legend.position = "right",
+          text = element_text(size=14),
+          legend.key.size = unit(0.5, "cm") )+
+    guides(fill = guide_legend(ncol=1)) 
+  return(p)
+}
+

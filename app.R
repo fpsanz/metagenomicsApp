@@ -22,13 +22,14 @@ library(shinythemes)
 library(shinyBS)
 library(phyloseq)
 library(DESeq2)
+library(shinybusy)
 source("utils.R")
 
 
 ui <- fluidPage(
     fluidRow(class= "headerLogo", 
              column(width = 3,
-                 HTML('<a href="http://www.imib.es/web/personal.jsf?id=7961" target="_blank"><img src="imibNombre.png" alt="imib", style="height:40px; padding-top:3px;"></a>')
+                 HTML('<a href="http://www.imib.es/web/personal.jsf?id=7961" target="_blank"><img src="imib.png" alt="imib", style="height:40px; padding-top:3px;"></a>')
              )),
     navbarPage(id ="navpanel",
                title ="Metagenomics viewer",
@@ -41,7 +42,8 @@ ui <- fluidPage(
                includeCSS("./www/mystyle.css"),
                setShadow(class = "box"),
                useShinyalert()
-    )
+    ),
+    add_busy_gif(src="dna-svg-small-13.gif", position = "full-page", width = 10, height = 10 )
     
 )
 
@@ -100,6 +102,7 @@ server <- function(input, output, session) {
         objetos <- load(file = paste0("data/",input$ficheros), envir = .GlobalEnv)
         datos$exper <- get(objetos[1], .GlobalEnv)
         datos$otu <- get(objetos[2], .GlobalEnv)
+        updateNavbarPage(session = session, inputId = "navpanel")
     })
     ## Mostrar preview de datos ######################
     output$matrix <- DT::renderDataTable({
@@ -162,10 +165,15 @@ server <- function(input, output, session) {
         samplesRemove <- samples2Remove(datos$exper, input$selectcriteria)
         datos$experfiltered <- datos$exper %>% filter(!(sampleId %in% samplesRemove))
         datos$otufiltered <- datos$otu %>% select(!all_of(samplesRemove))
-        contrasts$res <- rescontrastes(otu = datos$otufiltered,
+        contrastes <- rescontrastes(otu = datos$otufiltered,
                                        exper = datos$experfiltered,
                                        variablesUsuario = input$selectvariable)
-        contrasts$names <- names(contrasts$res)
+        contrasts$res <- contrastes$res
+        contrasts$names <- names(contrastes$res)
+        datos$otuphyl <- contrastes$otuphyl
+        datos$otuphylNorm <- contrastes$otuphylNorm
+        datos$experfiltered <- createSelectedVars(datos$experfiltered, input$selectvariable)
+        updateNavbarPage(session = session, inputId = "navpanel")
     })
     ## renderizar selector de contrastes ######################
     output$contrastSel <- renderUI({
@@ -191,8 +199,8 @@ server <- function(input, output, session) {
                 DT::formatSignif(1:4, digits = 3)
             }
     })
-    ## boxplot de abundancia
-    output$boxplot <- renderPlot({
+    ## boxplot de abundancia ##################
+    output$boxplot <- renderPlot(height = 800,{
         validate(need(datos,""))
         if(is.null(input$selectvariable)){
             createAlert(session, "messageBoxplot", "boxplotmessage",
@@ -203,10 +211,45 @@ server <- function(input, output, session) {
         }else{
             closeAlert(session, "boxplotmessage")
             bxplt <- abundanceBoxplot(datos, input$selectvariable)
+            print(bxplt)
         }
     })
-    
-    
+    ## barplot abundancia ##########################
+    output$barplot1 <- renderPlot(height = 800, {
+        validate(need(datos,""), 
+                 need(input$selectvariable, "") )
+        brplt1 <- barplotGrupo(datos, input$selectvariable)
+        print(brplt1)
+    })
+    ## barplot abundancia por muestra/grupo #################
+        ## selector de grupo #################
+    output$selectCondition <- renderUI({
+        validate(need(input$selectvariable,""),
+                 need(datos,""))
+        varsel<-paste0(input$selectvariable, collapse = ".")
+        selectInput("conditionSelection",
+                    label="Select condition",
+                    choices = unique(datos$experfiltered[varsel] ),
+                    selected = NULL, multiple = FALSE)
+    })
+    ## selector de muestras #################
+    output$selectSample <- renderUI({
+        validate(need(input$conditionSelection,""))
+        varsel<-paste0(input$selectvariable, collapse = ".")
+        samples <- exper$sampleId[datos$experfiltered[varsel]==input$conditionSelection]
+        selectInput("sampleSelection",
+                    label="Select sample[s] (max. 10 samples)",
+                    choices = samples,
+                    selected = NULL, multiple = TRUE)
+    })
+     ## plotear muestras
+    output$barplot2 <- renderPlot(height = 800, {
+        validate(need(datos,""),
+                 need(input$selectvariable, ""),
+                 need(input$sampleSelection,"") )
+        brplt2 <- barplotSample(datos, input$selectvariable, input$sampleSelection)
+        print(brplt2)
+    })
 }
 
 # Run the application 
